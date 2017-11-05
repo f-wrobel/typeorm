@@ -52,8 +52,13 @@ export class EntityMetadataUtils {
         newParsed.push(entity);
         let output: string[] = [];
         for (let key of Object.keys(entity)) {
-            this.getPropertiesPaths(entity[key], newParsed).forEach(nested => output.push(key + "." + nested));
-            output.push(key);
+            let properties: string[] = this.getPropertiesPaths(entity[key], newParsed);
+			if (properties.length < 1) {
+				output.push(key);
+            }
+			else {
+				properties.forEach(nested => output.push(key + "." + nested));
+            }
         }
         return output;
     }
