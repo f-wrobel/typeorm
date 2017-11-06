@@ -1,5 +1,6 @@
 import {ObjectLiteral} from "../common/ObjectLiteral";
 import {EmbeddedMetadata} from "./EmbeddedMetadata";
+import {EntityMetadata} from "./EntityMetadata";
 
 /**
  * Utils used to work with EntityMetadata objects.
@@ -22,7 +23,9 @@ export class EntityMetadataUtils {
     
             if (this.searchEmbeddeds(metadata.embeddeds, parentPath)) {
                 const subPaths: string[] =
-                      metadata.embeddeds.map(embedded => this.createPropertyPath(embedded, entity[key], parentPath)).reduce( (a, b) => [...a, ...b], []);
+                      metadata.embeddeds.map(embedded: EmbeddedMetadata => {
+                          this.createPropertyPath(embedded, entity[key], parentPath);
+                      }).reduce( (a: string[], b: string[]) => [...a, ...b], []);
                 paths.push(...subPaths);
             } else {
                 paths.push(parentPath);
