@@ -18,7 +18,6 @@ export class EntityMetadataUtils {
      * Internal create propertyPath worker.
      */ 
     private static createPropertyPathWorker(metadata: EntityMetadata|EmbeddedMetadata, entity: ObjectLiteral, prefix: string = ""): string[] {
-    static createPropertyPath(metadata: EntityMetadata|EmbeddedMetadata, entity: ObjectLiteral, prefix: string = ""): string[] {
     
         const paths: string[] = [];
     
