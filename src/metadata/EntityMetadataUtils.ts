@@ -10,7 +10,7 @@ export class EntityMetadataUtils {
     /**
      * Creates a property paths for a given entity.
      */
-    static createPropertyPath(metadata: EntityMetadata|EmbeddedMetadata, entity: ObjectLiteral, prefix: string = "") {
+    static createPropertyPath(metadata: EntityMetadata|EmbeddedMetadata, entity: ObjectLiteral, prefix: string = ""): string[] {
     
         const paths: string[] = [];
     
