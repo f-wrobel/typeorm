@@ -23,9 +23,9 @@ export class EntityMetadataUtils {
     
             if (this.searchEmbeddeds(metadata.embeddeds, parentPath)) {
                 const subPaths: string[] =
-                      metadata.embeddeds.map(embedded: EmbeddedMetadata => {
+                      metadata.embeddeds.map((embedded: EmbeddedMetadata) => {
                           this.createPropertyPath(embedded, entity[key], parentPath);
-                      }).reduce( (a: string[], b: string[]) => [...a, ...b], []);
+                      }).reduce((a: string[], b: string[]) => [...a, ...b], []);
                 paths.push(...subPaths);
             } else {
                 paths.push(parentPath);
