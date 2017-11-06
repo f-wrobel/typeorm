@@ -39,7 +39,7 @@ export class EntityMetadataUtils {
      */
     static searchEmbeddeds(embeddeds: EmbeddedMetadata[], key: string): boolean {
         for (let embedded of embeddeds) {
-            if (embedded.parentPropertyNames.join('.') === key || this.searchEmbeddeds(embedded.embeddeds, key)) {
+            if (embedded.parentPropertyNames.join(".") === key || this.searchEmbeddeds(embedded.embeddeds, key)) {
                 return true;
             }
         }
