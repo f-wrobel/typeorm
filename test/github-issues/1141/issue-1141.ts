@@ -49,18 +49,27 @@ describe("github issues > #1141: Pull request: Multiple nested embedded entities
             }
         });
 
-        const a2 = new A();
-        a2.n = 11;
-        a2.b.n = 12;
-        a2.b.c.n = 13;
-        a2.b.c.d.n = 14;
-        a2.c.n = 15;
-        a2.c.d.n = 16;
-
         // update object's properties
         await connection.createQueryBuilder()
             .update(A)
-            .set(a2)
+            .set({
+                n: 11,
+                b: {
+                    n: 12,
+                    c: {
+                        n: 13,
+                        d: {
+                            n: 14
+                        }
+                    }
+                },
+                c: {
+                    n: 15,
+                    d: {
+                        n: 16
+                    }
+                }
+            })
             .where({
                 id: 1
             })
