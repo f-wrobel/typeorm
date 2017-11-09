@@ -1,6 +1,7 @@
 import {RelationType} from "../metadata/types/RelationTypes";
 import {RelationOptions} from "../decorator/options/RelationOptions";
-import {PropertyTypeInFunction, RelationTypeInFunction} from "../metadata/RelationMetadata";
+import {PropertyTypeFactory} from "../metadata/types/PropertyTypeInFunction";
+import {RelationTypeInFunction} from "../metadata/types/RelationTypeInFunction";
 
 /**
  * Arguments for RelationMetadata class.
@@ -30,10 +31,10 @@ export interface RelationMetadataArgs {
 
     /**
      * Original (reflected) class's property type.
-     * 
+     *
      * todo: this can be empty for relations from entity schemas.
      */
-    readonly propertyType?: any;
+    // readonly propertyType?: any;
 
     /**
      * Type of relation. Can be one of the value of the RelationTypes class.
@@ -49,7 +50,7 @@ export interface RelationMetadataArgs {
     /**
      * Inverse side of the relation.
      */
-    readonly inverseSideProperty?: PropertyTypeInFunction<any>;
+    readonly inverseSideProperty?: PropertyTypeFactory<any>;
 
     /**
      * Additional relation options.
@@ -65,5 +66,5 @@ export interface RelationMetadataArgs {
      * Indicates if this is a children (can be only one-to-many relation) relation in the tree tables.
      */
     readonly isTreeChildren?: boolean;
-    
+
 }

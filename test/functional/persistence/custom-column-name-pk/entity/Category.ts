@@ -1,13 +1,15 @@
-import {Table} from "../../../../../src/decorator/tables/Table";
+import {Entity} from "../../../../../src/decorator/entity/Entity";
 import {PrimaryColumn} from "../../../../../src/decorator/columns/PrimaryColumn";
 import {Column} from "../../../../../src/decorator/columns/Column";
 import {Post} from "./Post";
 import {OneToMany} from "../../../../../src/decorator/relations/OneToMany";
+import {Generated} from "../../../../../src/decorator/Generated";
 
-@Table()
+@Entity()
 export class Category {
 
-    @PrimaryColumn("int", {generated: true, name: "theId"})
+    @PrimaryColumn("int", {name: "theId"})
+    @Generated()
     id: number;
 
     @Column()

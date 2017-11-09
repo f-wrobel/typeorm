@@ -2,7 +2,7 @@ import "reflect-metadata";
 import {expect} from "chai";
 import {Connection} from "../../src/connection/Connection";
 import {Post} from "../../sample/sample1-simple-entity/entity/Post";
-import {closeConnections, reloadDatabases, setupTestingConnections} from "../utils/test-utils";
+import {closeTestingConnections, createTestingConnections, reloadTestingDatabases} from "../utils/test-utils";
 
 describe("insertion", function() {
 
@@ -11,12 +11,11 @@ describe("insertion", function() {
     // -------------------------------------------------------------------------
 
     let connections: Connection[];
-    before(async () => connections = await setupTestingConnections({
+    before(async () => connections = await createTestingConnections({
         entities: [Post],
-        schemaCreate: true,
     }));
-    beforeEach(() => reloadDatabases(connections));
-    after(() => closeConnections(connections));
+    beforeEach(() => reloadTestingDatabases(connections));
+    after(() => closeTestingConnections(connections));
 
     // -------------------------------------------------------------------------
     // Specifications: persist
@@ -29,13 +28,13 @@ describe("insertion", function() {
         newPost.text = "Hello post";
         newPost.title = "this is post title";
         newPost.likesCount = 0;
-        const savedPost = await postRepository.persist(newPost);
+        const savedPost = await postRepository.save(newPost);
 
         savedPost.should.be.equal(newPost);
         expect(savedPost.id).not.to.be.empty;
 
-        const insertedPost = await postRepository.findOneById(savedPost.id);
-        insertedPost.should.be.eql({
+        const insertedPost = await postRepository.findOne(savedPost.id);
+        insertedPost!.should.be.eql({
             id: savedPost.id,
             text: "Hello post",
             title: "this is post title",

@@ -1,5 +1,3 @@
-import {DriverOptions} from "./DriverOptions";
-
 /**
  * Common driver utility functions.
  */
@@ -13,11 +11,11 @@ export class DriverUtils {
      * Normalizes and builds a new driver options.
      * Extracts settings from connection url and sets to a new options object.
      */
-    static buildDriverOptions(options: DriverOptions, buildOptions?: { useSid: boolean }): DriverOptions {
+    static buildDriverOptions(options: any, buildOptions?: { useSid: boolean }): any {
         if (options.url) {
             const parsedUrl = this.parseConnectionUrl(options.url);
             if (buildOptions && buildOptions.useSid) {
-                const urlDriverOptions: DriverOptions = {
+                const urlDriverOptions: any = {
                     type: options.type,
                     host: parsedUrl.host,
                     username: parsedUrl.username,
@@ -28,7 +26,7 @@ export class DriverUtils {
                 return Object.assign(urlDriverOptions, options);
 
             } else {
-                const urlDriverOptions: DriverOptions = {
+                const urlDriverOptions: any = {
                     type: options.type,
                     host: parsedUrl.host,
                     username: parsedUrl.username,
@@ -50,16 +48,21 @@ export class DriverUtils {
      * Extracts connection data from the connection url.
      */
     private static parseConnectionUrl(url: string) {
-        const urlParser = require("url");
-        const params = urlParser.parse(url);
-        const auth = params.auth.split(":");
+        const firstSlashes = url.indexOf("//");
+        const preBase = url.substr(firstSlashes + 2);
+        const secondSlash = preBase.indexOf("/");
+        const base = (secondSlash !== -1) ? preBase.substr(0, secondSlash) : preBase;
+        const afterBase = (secondSlash !== -1) ? preBase.substr(secondSlash + 1) : undefined;
+        const [usernameAndPassword, hostAndPort] = base.split("@");
+        const [username, password] = usernameAndPassword.split(":");
+        const [host, port] = hostAndPort.split(":");
 
         return {
-            host: params.hostname,
-            username: auth[0],
-            password: auth[1],
-            port: parseInt(params.port),
-            database: params.pathname.split("/")[1]
+            host: host,
+            username: username,
+            password: password,
+            port: port ? parseInt(port) : undefined,
+            database: afterBase || undefined
         };
     }
 

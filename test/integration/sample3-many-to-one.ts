@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import {expect} from "chai";
 import {Connection} from "../../src/connection/Connection";
-import {createConnection, ConnectionOptions} from "../../src/index";
+import {createConnection} from "../../src/index";
 import {Repository} from "../../src/repository/Repository";
 import {PostDetails} from "../../sample/sample3-many-to-one/entity/PostDetails";
 import {Post} from "../../sample/sample3-many-to-one/entity/Post";
@@ -10,7 +10,7 @@ import {PostAuthor} from "../../sample/sample3-many-to-one/entity/PostAuthor";
 import {PostMetadata} from "../../sample/sample3-many-to-one/entity/PostMetadata";
 import {PostImage} from "../../sample/sample3-many-to-one/entity/PostImage";
 import {PostInformation} from "../../sample/sample3-many-to-one/entity/PostInformation";
-import {createTestingConnectionOptions} from "../utils/test-utils";
+import {setupSingleTestingConnection} from "../utils/test-utils";
 
 describe("many-to-one", function() {
 
@@ -18,24 +18,19 @@ describe("many-to-one", function() {
     // Configuration
     // -------------------------------------------------------------------------
 
-    const options: ConnectionOptions = {
-        driver: createTestingConnectionOptions("postgres"),
-        entities: [Post, PostDetails, PostCategory, PostMetadata, PostImage, PostInformation, PostAuthor]
-    };
-
     // connect to db
     let connection: Connection;
-    before(function() {
-        return createConnection(options)
-            .then(con => connection = con)
-            .catch(e => console.log("Error during connection to db: " + e, e.stack));
+    before(async function() {
+        connection = await createConnection(setupSingleTestingConnection("mysql", {
+            entities: [Post, PostDetails, PostCategory, PostMetadata, PostImage, PostInformation, PostAuthor],
+        }));
     });
 
     after(() => connection.close());
 
     // clean up database before each test
     function reloadDatabase() {
-        return connection.syncSchema(true);
+        return connection.synchronize(true);
     }
 
     let postRepository: Repository<Post>,
@@ -70,7 +65,7 @@ describe("many-to-one", function() {
             newPost.text = "Hello post";
             newPost.title = "this is post title";
             newPost.details = details;
-            return postRepository.persist(newPost).then(post => savedPost = post);
+            return postRepository.save(newPost).then(post => savedPost = post as Post);
         });
 
         it("should return the same post instance after its created", function () {
@@ -92,7 +87,7 @@ describe("many-to-one", function() {
             expectedPost.text = savedPost.text;
             expectedPost.title = savedPost.title;
             
-            return postRepository.findOneById(savedPost.id).should.eventually.eql(expectedPost);
+            return postRepository.findOne(savedPost.id).should.eventually.eql(expectedPost);
         });
 
         it("should have inserted post details in the database", function() {
@@ -102,7 +97,7 @@ describe("many-to-one", function() {
             expectedDetails.comment = savedPost.details.comment;
             expectedDetails.metadata = savedPost.details.metadata;
             
-            return postDetailsRepository.findOneById(savedPost.details.id).should.eventually.eql(expectedDetails);
+            return postDetailsRepository.findOne(savedPost.details.id).should.eventually.eql(expectedDetails);
         });
 
         it("should load post and its details if left join used", function() {
@@ -121,7 +116,7 @@ describe("many-to-one", function() {
                 .leftJoinAndSelect("post.details", "details")
                 .where("post.id=:id")
                 .setParameter("id", savedPost.id)
-                .getSingleResult()
+                .getOne()
                 .should.eventually.eql(expectedPost);
         });
 
@@ -138,6 +133,7 @@ describe("many-to-one", function() {
             expectedPost.text = savedPost.text;
             expectedPost.title = savedPost.title;
             
+            expectedDetails.posts = [];
             expectedDetails.posts.push(expectedPost);
             
             return postDetailsRepository
@@ -145,7 +141,7 @@ describe("many-to-one", function() {
                 .leftJoinAndSelect("details.posts", "posts")
                 .where("details.id=:id")
                 .setParameter("id", savedPost.id)
-                .getSingleResult()
+                .getOne()
                 .should.eventually.eql(expectedDetails);
         });
 
@@ -158,7 +154,7 @@ describe("many-to-one", function() {
             return postRepository
                 .createQueryBuilder("post")
                 .where("post.id=:id", { id: savedPost.id })
-                .getSingleResult()
+                .getOne()
                 .should.eventually.eql(expectedPost);
         });
 
@@ -172,7 +168,7 @@ describe("many-to-one", function() {
             return postDetailsRepository
                 .createQueryBuilder("details")
                 .where("details.id=:id", { id: savedPost.id })
-                .getSingleResult()
+                .getOne()
                 .should.eventually.eql(expectedDetails);
         });
 
@@ -192,7 +188,7 @@ describe("many-to-one", function() {
             newPost.title = "this is post title";
             newPost.category = category;
 
-            return postRepository.persist(newPost).then(post => savedPost = post);
+            return postRepository.save(newPost).then(post => savedPost = post as Post);
         });
 
         it("should return the same post instance after its created", function () {
@@ -213,14 +209,14 @@ describe("many-to-one", function() {
             expectedPost.id = savedPost.id;
             expectedPost.text = savedPost.text;
             expectedPost.title = savedPost.title;
-            return postRepository.findOneById(savedPost.id).should.eventually.eql(expectedPost);
+            return postRepository.findOne(savedPost.id).should.eventually.eql(expectedPost);
         });
 
         it("should have inserted category in the database", function() {
             const expectedPost = new PostCategory();
             expectedPost.id = savedPost.category.id;
             expectedPost.name = "technology";
-            return postCategoryRepository.findOneById(savedPost.category.id).should.eventually.eql(expectedPost);
+            return postCategoryRepository.findOne(savedPost.category.id).should.eventually.eql(expectedPost);
         });
 
         it("should load post and its category if left join used", function() {
@@ -236,7 +232,7 @@ describe("many-to-one", function() {
                 .createQueryBuilder("post")
                 .leftJoinAndSelect("post.category", "category")
                 .where("post.id=:id", { id: savedPost.id })
-                .getSingleResult()
+                .getOne()
                 .should.eventually.eql(expectedPost);
         });
 
@@ -270,22 +266,22 @@ describe("many-to-one", function() {
             newPost.details = details;
 
             return postRepository
-                .persist(newPost)
-                .then(post => savedPost = post);
+                .save(newPost)
+                .then(post => savedPost = post as Post);
         });
 
         it("should ignore updates in the model and do not update the db when entity is updated", function () {
             newPost.details.comment = "i am updated comment";
-            return postRepository.persist(newPost).then(updatedPost => {
-                updatedPost.details.comment.should.be.equal("i am updated comment");
+            return postRepository.save(newPost).then(updatedPost => {
+                updatedPost.details!.comment!.should.be.equal("i am updated comment");
                 return postRepository
                     .createQueryBuilder("post")
                     .leftJoinAndSelect("post.details", "details")
                     .where("post.id=:id")
                     .setParameter("id", updatedPost.id)
-                    .getSingleResult();
+                    .getOne();
             }).then(updatedPostReloaded => {
-                updatedPostReloaded.details.comment.should.be.equal("this is post");
+                updatedPostReloaded!.details.comment!.should.be.equal("this is post");
             });
         }); // todo: also check that updates throw exception in strict cascades mode
     });
@@ -308,27 +304,27 @@ describe("many-to-one", function() {
             newPost.details = details;
 
             return postRepository
-                .persist(newPost)
-                .then(post => savedPost = post);
+                .save(newPost)
+                .then(post => savedPost = post as Post);
         });
 
         it("should ignore updates in the model and do not update the db when entity is updated", function () {
             delete newPost.details;
-            return postRepository.persist(newPost).then(updatedPost => {
+            return postRepository.save(newPost).then(updatedPost => {
                 return postRepository
                     .createQueryBuilder("post")
                     .leftJoinAndSelect("post.details", "details")
                     .where("post.id=:id")
                     .setParameter("id", updatedPost.id)
-                    .getSingleResult();
+                    .getOne();
             }).then(updatedPostReloaded => {
-                updatedPostReloaded.details.comment.should.be.equal("this is post");
+                updatedPostReloaded!.details.comment!.should.be.equal("this is post");
             });
         });
     });
 
     describe("cascade updates should be executed when cascadeUpdate option is set", function() {
-        let newPost: Post, newImage: PostImage, savedImage: PostImage;
+        let newPost: Post, newImage: PostImage;
 
         before(reloadDatabase);
 
@@ -342,24 +338,23 @@ describe("many-to-one", function() {
             newPost.title = "this is post title";
 
             return postImageRepository
-                .persist(newImage)
+                .save(newImage)
                 .then(image => {
-                    savedImage = image;
-                    newPost.image = image;
-                    return postRepository.persist(newPost);
+                    newPost.image = image as PostImage;
+                    return postRepository.save(newPost);
 
                 }).then(post => {
-                    newPost = post;
+                    newPost = post as Post;
                     return postRepository
                         .createQueryBuilder("post")
                         .leftJoinAndSelect("post.image", "image")
                         .where("post.id=:id")
                         .setParameter("id", post.id)
-                        .getSingleResult();
+                        .getOne();
 
                 }).then(loadedPost => {
-                    loadedPost.image.url = "new-logo.png";
-                    return postRepository.persist(loadedPost);
+                    loadedPost!.image.url = "new-logo.png";
+                    return postRepository.save(loadedPost!);
 
                 }).then(() => {
                     return postRepository
@@ -367,17 +362,17 @@ describe("many-to-one", function() {
                         .leftJoinAndSelect("post.image", "image")
                         .where("post.id=:id")
                         .setParameter("id", newPost.id)
-                        .getSingleResult();
+                        .getOne();
                     
                 }).then(reloadedPost => {
-                    reloadedPost.image.url.should.be.equal("new-logo.png");
+                    reloadedPost!.image.url.should.be.equal("new-logo.png");
                 });
         });
 
     });
 
     describe("cascade remove should be executed when cascadeRemove option is set", function() {
-        let newPost: Post, newMetadata: PostMetadata, savedMetadata: PostMetadata;
+        let newPost: Post, newMetadata: PostMetadata;
 
         before(reloadDatabase);
 
@@ -391,24 +386,23 @@ describe("many-to-one", function() {
             newPost.title = "this is post title";
 
             return postMetadataRepository
-                .persist(newMetadata)
+                .save(newMetadata)
                 .then(metadata => {
-                    savedMetadata = metadata;
-                    newPost.metadata = metadata;
-                    return postRepository.persist(newPost);
+                    newPost.metadata = metadata as PostMetadata;
+                    return postRepository.save(newPost);
 
                 }).then(post => {
-                    newPost = post;
+                    newPost = post as Post;
                     return postRepository
                         .createQueryBuilder("post")
                         .leftJoinAndSelect("post.metadata", "metadata")
                         .where("post.id=:id")
                         .setParameter("id", post.id)
-                        .getSingleResult();
+                        .getOne();
 
                 }).then(loadedPost => {
-                    loadedPost.metadata = undefined;
-                    return postRepository.persist(loadedPost);
+                    loadedPost!.metadata = null;
+                    return postRepository.save(loadedPost!);
 
                 }).then(() => {
                     return postRepository
@@ -416,10 +410,10 @@ describe("many-to-one", function() {
                         .leftJoinAndSelect("post.metadata", "metadata")
                         .where("post.id=:id")
                         .setParameter("id", newPost.id)
-                        .getSingleResult();
+                        .getOne();
 
                 }).then(reloadedPost => {
-                    expect(reloadedPost.metadata).to.be.empty;
+                    expect(reloadedPost!.metadata).to.be.null;
                 });
         });
 
@@ -437,9 +431,10 @@ describe("many-to-one", function() {
 
             details = new PostDetails();
             details.comment = "post details comment";
+            details.posts = [];
             details.posts.push(newPost);
 
-            return postDetailsRepository.persist(details).then(details => savedDetails = details);
+            return postDetailsRepository.save(details).then(details => savedDetails = details as PostDetails);
         });
 
         it("should return the same post instance after its created", function () {
@@ -460,20 +455,25 @@ describe("many-to-one", function() {
             expectedPost.id = newPost.id;
             expectedPost.text = newPost.text;
             expectedPost.title = newPost.title;
-            return postRepository.findOneById(savedDetails.id).should.eventually.eql(expectedPost);
+            return postRepository.findOne(savedDetails.id).should.eventually.eql(expectedPost);
         });
 
         it("should have inserted details in the database", function() {
             const expectedDetails = new PostDetails();
             expectedDetails.id = details.id;
             expectedDetails.comment = details.comment;
-            return postDetailsRepository.findOneById(details.id).should.eventually.eql(expectedDetails);
+            expectedDetails.metadata = null;
+            expectedDetails.authorName = null;
+            return postDetailsRepository.findOne(details.id).should.eventually.eql(expectedDetails);
         });
 
         it("should load post and its details if left join used", function() {
             const expectedDetails = new PostDetails();
             expectedDetails.id = savedDetails.id;
             expectedDetails.comment = savedDetails.comment;
+            expectedDetails.metadata = null;
+            expectedDetails.authorName = null;
+            expectedDetails.posts = [];
             expectedDetails.posts.push(new Post());
             expectedDetails.posts[0].id = newPost.id;
             expectedDetails.posts[0].text = newPost.text;
@@ -483,7 +483,7 @@ describe("many-to-one", function() {
                 .createQueryBuilder("details")
                 .leftJoinAndSelect("details.posts", "posts")
                 .where("details.id=:id", { id: savedDetails.id })
-                .getSingleResult()
+                .getOne()
                 .should.eventually.eql(expectedDetails);
         });
 

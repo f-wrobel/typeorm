@@ -1,20 +1,16 @@
 import "reflect-metadata";
-import {createConnection, ConnectionOptions} from "../../src/index";
+import {ConnectionOptions, createConnection} from "../../src/index";
 import {EverythingEntity} from "./entity/EverythingEntity";
 
 const options: ConnectionOptions = {
-    driver: {
-        type: "mysql",
-        host: "localhost",
-        port: 3306,
-        username: "root",
-        password: "admin",
-        database: "test"
-    },
-    logging: {
-        logOnlyFailedQueries: true
-    },
-    autoSchemaSync: true,
+    type: "mysql",
+    host: "localhost",
+    port: 3306,
+    username: "root",
+    password: "admin",
+    database: "test",
+    logging: ["query", "error"],
+    synchronize: true,
     entities: [EverythingEntity]
 };
 
@@ -44,11 +40,11 @@ createConnection(options).then(connection => {
     let postRepository = connection.getRepository(EverythingEntity);
 
     postRepository
-        .persist(entity)
+        .save(entity)
         .then(entity => {
             console.log("EverythingEntity has been saved. Lets insert a new one to update it later");
             delete entity.id;
-            return postRepository.persist(entity);
+            return postRepository.save(entity);
         })
         .then(entity => {
             console.log("Second entity has been inserted. Lets update it");
@@ -72,21 +68,21 @@ createConnection(options).then(connection => {
             entity.jsonColumn = [{ olleh: "hello" }, { dlrow: "world" }];
             entity.alsoJson = { olleh: "hello", dlrow: "world" };
 
-            return postRepository.persist(entity);
+            return postRepository.save(entity);
         })
         .then(entity => {
             console.log("Entity has been updated. Persist once again to make find and remove then");
 
             delete entity.id;
-            return postRepository.persist(entity);
+            return postRepository.save(entity);
         })
         .then(entity => {
-            return postRepository.findOneById(entity.id);
+            return postRepository.findOne(entity.id);
         })
         .then(entity => {
             console.log("Entity is loaded: ", entity);
             console.log("Now remove it");
-            return postRepository.remove(entity);
+            return postRepository.remove(entity!);
         })
         .then(entity => {
             console.log("Entity has been removed");

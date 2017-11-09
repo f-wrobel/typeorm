@@ -1,17 +1,25 @@
+///<reference path="node_modules/@types/node/index.d.ts"/>
+///<reference path="node_modules/@types/chai/index.d.ts"/>
+///<reference path="node_modules/@types/mocha/index.d.ts"/>
+
 import {Gulpclass, Task, SequenceTask, MergedTask} from "gulpclass";
 
 const gulp = require("gulp");
 const del = require("del");
 const shell = require("gulp-shell");
 const replace = require("gulp-replace");
+const rename = require("gulp-rename");
+const file = require("gulp-file");
+const uglify = require("gulp-uglify");
 const mocha = require("gulp-mocha");
 const chai = require("chai");
 const tslint = require("gulp-tslint");
 const stylish = require("tslint-stylish");
-const ts = require("gulp-typescript");
 const sourcemaps = require("gulp-sourcemaps");
 const istanbul = require("gulp-istanbul");
 const remapIstanbul = require("remap-istanbul/lib/gulpRemapIstanbul");
+const ts = require("gulp-typescript");
+const args = require("yargs").argv;
 
 @Gulpclass()
 export class Gulpfile {
@@ -19,6 +27,14 @@ export class Gulpfile {
     // -------------------------------------------------------------------------
     // General tasks
     // -------------------------------------------------------------------------
+
+    /**
+     * Creates a delay and resolves after 30 seconds.
+     */
+    @Task()
+    wait(cb: Function) {
+        setTimeout(() => cb(), 30000);
+    }
 
     /**
      * Cleans build folder.
@@ -34,21 +50,133 @@ export class Gulpfile {
     @Task()
     compile() {
         return gulp.src("package.json", { read: false })
-            .pipe(shell(["tsc"]));
+            .pipe(shell(["npm run compile"]));
     }
 
     // -------------------------------------------------------------------------
-    // Packaging and Publishing tasks
+    // Build and packaging for browser
+    // -------------------------------------------------------------------------
+
+    /**
+     * Copies all source files into destination folder in a correct structure.
+     */
+    @Task()
+    browserCopySources() {
+        return gulp.src([
+            "./src/**/*.ts",
+            "!./src/commands/*.ts",
+            "!./src/cli.ts",
+            "!./src/typeorm.ts",
+            "!./src/typeorm-model-shim.ts",
+            "!./src/platform/PlatformTools.ts"
+        ])
+        .pipe(gulp.dest("./build/systemjs/typeorm"))
+        .pipe(gulp.dest("./build/browser/src"));
+    }
+
+    /**
+     * Creates special main file for browser build.
+     */
+    @Task()
+    browserCopyMainBrowserFile() {
+        return gulp.src("./package.json", { read: false })
+            .pipe(file("typeorm.ts", `export * from "./typeorm/index";`))
+            .pipe(gulp.dest("./build/systemjs"));
+    }
+
+    /**
+     * Replaces PlatformTools with browser-specific implementation called BrowserPlatformTools.
+     */
+    @Task()
+    browserCopyPlatformTools() {
+        return gulp.src("./src/platform/BrowserPlatformTools.template")
+            .pipe(rename("PlatformTools.ts"))
+            .pipe(gulp.dest("./build/systemjs/typeorm/platform"))
+            .pipe(gulp.dest("./build/browser/src/platform"));
+    }
+
+    /**
+     * Runs files compilation of browser-specific source code.
+     */
+    @MergedTask()
+    browserCompileSystemJS() {
+        const tsProject = ts.createProject("tsconfig.json", {
+            outFile: "typeorm-browser.js",
+            module: "system",
+            "lib": ["es5", "es6", "dom"],
+            typescript: require("typescript")
+        });
+        const tsResult = gulp.src(["./build/systemjs/**/*.ts", "./node_modules/reflect-metadata/**/*.d.ts", "./node_modules/@types/**/*.ts"])
+            .pipe(sourcemaps.init())
+            .pipe(tsProject());
+
+        return [
+            tsResult.js
+                .pipe(sourcemaps.write(".", { sourceRoot: "", includeContent: true }))
+                .pipe(gulp.dest("./build/package"))
+        ];
+    }
+
+    @MergedTask()
+    browserCompile() {
+        const tsProject = ts.createProject("tsconfig.json", {
+            module: "es2015",
+            "lib": ["es5", "es6", "dom"],
+            typescript: require("typescript")
+        });
+        const tsResult = gulp.src(["./build/browser/src/**/*.ts", "./node_modules/reflect-metadata/**/*.d.ts", "./node_modules/@types/**/*.ts"])
+            .pipe(sourcemaps.init())
+            .pipe(tsProject());
+
+        return [
+            tsResult.dts.pipe(gulp.dest("./build/package/browser")),
+            tsResult.js
+                .pipe(sourcemaps.write(".", { sourceRoot: "", includeContent: true }))
+                .pipe(gulp.dest("./build/package/browser"))
+        ];
+    }
+
+    /**
+     * Uglifys all code.
+     */
+    @Task()
+    browserUglify() {
+        return gulp.src("./build/package/typeorm-browser.js")
+            .pipe(uglify())
+            .pipe(rename("typeorm-browser.min.js"))
+            .pipe(gulp.dest("./build/package"));
+    }
+
+    @Task()
+    browserClearPackageDirectory(cb: Function) {
+        return del([
+            "./build/systemjs/**"
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Main Packaging and Publishing tasks
     // -------------------------------------------------------------------------
 
     /**
      * Publishes a package to npm from ./build/package directory.
      */
     @Task()
-    npmPublish() {
-        return gulp.src("*.js", { read: false })
+    packagePublish() {
+        return gulp.src("package.json", { read: false })
             .pipe(shell([
                 "cd ./build/package && npm publish"
+            ]));
+    }
+
+    /**
+     * Publishes a package to npm from ./build/package directory with @next tag.
+     */
+    @Task()
+    packagePublishNext() {
+        return gulp.src("package.json", { read: false })
+            .pipe(shell([
+                "cd ./build/package && npm publish --tag next"
             ]));
     }
 
@@ -60,7 +188,7 @@ export class Gulpfile {
         const tsProject = ts.createProject("tsconfig.json", { typescript: require("typescript") });
         const tsResult = gulp.src(["./src/**/*.ts", "./node_modules/@types/**/*.ts"])
             .pipe(sourcemaps.init())
-            .pipe(ts(tsProject));
+            .pipe(tsProject());
 
         return [
             tsResult.dts.pipe(gulp.dest("./build/package")),
@@ -80,10 +208,21 @@ export class Gulpfile {
     }
 
     /**
+     * Removes /// <reference from compiled sources.
+     */
+    @Task()
+    packageReplaceReferences() {
+        return gulp.src("./build/package/**/*.d.ts")
+            .pipe(replace(`/// <reference types="node" />`, ""))
+            .pipe(replace(`/// <reference types="chai" />`, ""))
+            .pipe(gulp.dest("./build/package"));
+    }
+
+    /**
      * Moves all compiled files to the final package directory.
      */
     @Task()
-    packageClearCompileDirectory(cb: Function) {
+    packageClearPackageDirectory(cb: Function) {
         return del([
             "build/package/src/**"
         ], cb);
@@ -100,22 +239,21 @@ export class Gulpfile {
     }
 
     /**
-     * This task will replace all typescript code blocks in the README (since npm does not support typescript syntax
-     * highlighting) and copy this README file into the package folder.
+     * Copies README.md into the package.
      */
     @Task()
-    packageReadmeFile() {
+    packageCopyReadme() {
         return gulp.src("./README.md")
             .pipe(replace(/```typescript([\s\S]*?)```/g, "```javascript$1```"))
             .pipe(gulp.dest("./build/package"));
     }
 
     /**
-     * This task will copy typings.json file to the build package.
+     * Copies shims to use typeorm in different environment and conditions file into package.
      */
     @Task()
-    copyTypingsFile() {
-        return gulp.src("./typings.json")
+    packageCopyShims() {
+        return gulp.src(["./extra/typeorm-model-shim.js", "./extra/typeorm-class-transformer-shim.js"])
             .pipe(gulp.dest("./build/package"));
     }
 
@@ -126,10 +264,17 @@ export class Gulpfile {
     package() {
         return [
             "clean",
-            "packageCompile",
-            "packageMoveCompiledFiles",
-            "packageClearCompileDirectory",
-            ["packagePreparePackageFile", "packageReadmeFile", "copyTypingsFile"]
+            ["browserCopySources", "browserCopyMainBrowserFile", "browserCopyPlatformTools"],
+            ["packageCompile", "browserCompile", "browserCompileSystemJS"],
+            ["packageMoveCompiledFiles", "browserUglify"],
+            [
+                "browserClearPackageDirectory",
+                "packageClearPackageDirectory",
+                "packageReplaceReferences",
+                "packagePreparePackageFile",
+                "packageCopyReadme",
+                "packageCopyShims"
+            ],
         ];
     }
 
@@ -138,7 +283,15 @@ export class Gulpfile {
      */
     @SequenceTask()
     publish() {
-        return ["package", "npmPublish"];
+        return ["package", "packagePublish"];
+    }
+
+    /**
+     * Creates a package and publishes it to npm with @next tag.
+     */
+    @SequenceTask("publish-next")
+    publishNext() {
+        return ["package", "packagePublishNext"];
     }
 
     // -------------------------------------------------------------------------
@@ -179,8 +332,28 @@ export class Gulpfile {
         chai.use(require("chai-as-promised"));
 
         return gulp.src(["./build/compiled/test/**/*.js"])
-            .pipe(mocha())
+            .pipe(mocha({
+                bail: true,
+                grep: !!args.grep ? new RegExp(args.grep) : undefined,
+                timeout: 15000
+            }))
             .pipe(istanbul.writeReports());
+    }
+
+    /**
+     * Runs tests the quick way.
+     */
+    @Task()
+    quickTests() {
+        chai.should();
+        chai.use(require("sinon-chai"));
+        chai.use(require("chai-as-promised"));
+
+        return gulp.src(["./build/compiled/test/**/*.js"])
+            .pipe(mocha({
+                bail: true,
+                timeout: 15000
+            }));
     }
 
     @Task()
@@ -191,11 +364,49 @@ export class Gulpfile {
     }
 
     /**
-     * Compiles the code and runs tests.
+     * Compiles the code and runs tests + makes coverage report.
      */
     @SequenceTask()
     tests() {
-        return [/*"compile", */"tslint", "coveragePost", "coverageRemap"];
+        return [
+            "compile",
+            "tslint",
+            "coveragePost",
+            "coverageRemap"
+        ];
+    }
+
+    /**
+     * Runs tests, but creates a small delay before running them to make sure to give time for docker containers to be initialized.
+     */
+    @SequenceTask("ci-tests")
+    ciTests() {
+        return [
+            "wait",
+            "compile",
+            "tslint",
+            "coveragePost",
+            "coverageRemap"
+        ];
+    }
+
+    /**
+     * Compiles the code and runs only mocha tests.
+     */
+    @SequenceTask()
+    mocha() {
+        return ["compile", "quickTests"];
+    }
+
+    // -------------------------------------------------------------------------
+    // CI tasks
+    // -------------------------------------------------------------------------
+
+    @Task()
+    createTravisOrmConfig() {
+        return gulp.src("./ormconfig.travis.json")
+            .pipe(rename("ormconfig.json"))
+            .pipe(gulp.dest("./"));
     }
 
 }

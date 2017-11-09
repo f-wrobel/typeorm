@@ -1,7 +1,5 @@
 import {Column} from "../../../src/index";
-import {EmbeddableTable} from "../../../src/decorator/tables/EmbeddableTable";
 
-@EmbeddableTable()
 export class Counters {
 
     @Column()

@@ -1,7 +1,7 @@
-import {PrimaryGeneratedColumn, Column, Table, OneToMany} from "../../../src/index";
+import {Column, Entity, OneToMany, PrimaryGeneratedColumn} from "../../../src/index";
 import {PostDetails} from "./PostDetails";
 
-@Table("sample10_chapter")
+@Entity("sample10_chapter")
 export class Chapter {
 
     @PrimaryGeneratedColumn()

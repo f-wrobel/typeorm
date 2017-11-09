@@ -1,8 +1,8 @@
-import {PrimaryGeneratedColumn, Column, Table} from "../../../src/index";
+import {Column, Entity, PrimaryGeneratedColumn} from "../../../src/index";
 import {Post} from "./Post";
 import {OneToMany} from "../../../src/decorator/relations/OneToMany";
 
-@Table("sample7_post_author")
+@Entity("sample7_post_author")
 export class PostAuthor {
 
     @PrimaryGeneratedColumn()

@@ -1,32 +1,34 @@
-import {PrimaryGeneratedColumn, Column, Table, OneToMany} from "../../../src/index";
+import {Column, Entity, OneToMany, PrimaryGeneratedColumn} from "../../../src/index";
 import {Post} from "./Post";
 
-@Table("sample3_post_details")
+@Entity("sample3_post_details")
 export class PostDetails {
 
     @PrimaryGeneratedColumn()
     id: number;
 
     @Column({
-        nullable: true
+        type: String,
+        nullable: true,
     })
-    authorName: string;
+    authorName: string|null;
 
     @Column({
+        type: String,
         nullable: true
     })
-    comment: string;
+    comment: string|null;
 
     @Column({
+        type: String,
         nullable: true
     })
-    metadata: string;
+    metadata: string|null;
     
     @OneToMany(type => Post, post => post.details, {
         cascadeInsert: true,
-        cascadeUpdate: true,
-        cascadeRemove: true
+        cascadeUpdate: true
     })
-    posts: Post[] = [];
+    posts: Post[];
 
 }

@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import {setupTestingConnections, closeConnections, reloadDatabases} from "../../../utils/test-utils";
+import {closeTestingConnections, createTestingConnections, reloadTestingDatabases} from "../../../utils/test-utils";
 import {Connection} from "../../../../src/connection/Connection";
 import {Post} from "./entity/Post";
 import {Counters} from "./entity/Counters";
@@ -7,9 +7,11 @@ import {Counters} from "./entity/Counters";
 describe("decorators > embedded", () => {
 
     let connections: Connection[];
-    beforeEach(() => setupTestingConnections({ entities: [Post, Counters], reloadAndCreateSchema: true }).then(all => connections = all));
-    beforeEach(() => reloadDatabases(connections));
-    afterEach(() => closeConnections(connections));
+    beforeEach(() => createTestingConnections({
+        entities: [Post, Counters]
+    }).then(all => connections = all));
+    beforeEach(() => reloadTestingDatabases(connections));
+    afterEach(() => closeTestingConnections(connections));
 
     describe("basic functionality", function() {
 
@@ -24,10 +26,10 @@ describe("decorators > embedded", () => {
             post.counters.favorites = 2;
             post.counters.likes = 1;
 
-            await postRepository.persist(post);
+            await postRepository.save(post);
 
             // now load it
-            const loadedPost = await postRepository.findOneById(1);
+            const loadedPost = (await postRepository.findOne(1))!;
             loadedPost.id.should.be.equal(1);
             loadedPost.title.should.be.equal("Hello post");
             loadedPost.text.should.be.equal("This is text about the post");
@@ -50,7 +52,7 @@ describe("decorators > embedded", () => {
             post1.counters.favorites = 2;
             post1.counters.likes = 1;
 
-            await postRepository.persist(post1);
+            await postRepository.save(post1);
 
             const post2 = new Post();
             post2.title = "Hello post #2";
@@ -60,13 +62,13 @@ describe("decorators > embedded", () => {
             post2.counters.favorites = 1;
             post2.counters.likes = 2;
 
-            await postRepository.persist(post2);
+            await postRepository.save(post2);
 
             // now load it
             const sortedPosts1 = await postRepository
                 .createQueryBuilder("post")
                 .orderBy("post.counters.comments", "DESC")
-                .getResults();
+                .getMany();
 
             sortedPosts1.should.be.eql([{
                 id: 2,
@@ -92,7 +94,7 @@ describe("decorators > embedded", () => {
             const sortedPosts2 = await postRepository
                 .createQueryBuilder("post")
                 .orderBy("post.counters.favorites", "DESC")
-                .getResults();
+                .getMany();
 
             sortedPosts2.should.be.eql([{
                 id: 1,

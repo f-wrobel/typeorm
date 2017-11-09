@@ -1,25 +1,19 @@
 import "reflect-metadata";
-import {createConnection, ConnectionOptions} from "../../src/index";
+import {ConnectionOptions, createConnection} from "../../src/index";
 import {Employee} from "./entity/Employee";
 import {Homesitter} from "./entity/Homesitter";
 import {Student} from "./entity/Student";
 import {Person} from "./entity/Person";
 
 const options: ConnectionOptions = {
-    driver: {
-        type: "mysql",
-        host: "localhost",
-        port: 3306,
-        username: "root",
-        password: "admin",
-        database: "test"
-    },
-    logging: {
-        // logQueries: true,
-        logOnlyFailedQueries: true,
-        logFailedQueryError: true
-    },
-    autoSchemaSync: true,
+    type: "mysql",
+    host: "localhost",
+    port: 3306,
+    username: "root",
+    password: "admin",
+    database: "test",
+    logging: ["query", "error"],
+    synchronize: true,
     entities: [
         Person,
         Employee,
@@ -38,11 +32,11 @@ createConnection(options).then(async connection => {
     employee.salary = 200000;
 
     console.log("saving the employee: ");
-    await employeeRepository.persist(employee);
+    await employeeRepository.save(employee);
     console.log("employee has been saved: ", employee);
 
     console.log("now loading the employee: ");
-    const loadedEmployee = await employeeRepository.findOneById(1);
+    const loadedEmployee = await employeeRepository.findOne(1);
     console.log("loaded employee: ", loadedEmployee);
 
     console.log("-----------------");
@@ -55,11 +49,11 @@ createConnection(options).then(async connection => {
     homesitter.numberOfKids = 5;
 
     console.log("saving the homesitter: ");
-    await homesitterRepository.persist(homesitter);
+    await homesitterRepository.save(homesitter);
     console.log("homesitter has been saved: ", homesitter);
 
     console.log("now loading the homesitter: ");
-    const loadedHomesitter = await homesitterRepository.findOneById(2);
+    const loadedHomesitter = await homesitterRepository.findOne(2);
     console.log("loaded homesitter: ", loadedHomesitter);
 
     console.log("-----------------");
@@ -72,27 +66,27 @@ createConnection(options).then(async connection => {
     student.faculty = "computer science";
 
     console.log("saving the student: ");
-    await studentRepository.persist(student);
+    await studentRepository.save(student);
     console.log("student has been saved: ", student);
 
     console.log("now loading the student: ");
-    const loadedStudent = await studentRepository.findOneById(3);
+    const loadedStudent = await studentRepository.findOne(3);
     console.log("loaded student: ", loadedStudent);
 
     console.log("-----------------");
-    const secondEmployee = await employeeRepository.findOneById(2);
+    const secondEmployee = await employeeRepository.findOne(2);
     console.log("Non exist employee: ", secondEmployee);
-    const thirdEmployee = await employeeRepository.findOneById(3);
+    const thirdEmployee = await employeeRepository.findOne(3);
     console.log("Non exist employee: ", thirdEmployee);
     console.log("-----------------");
-    const secondHomesitter = await homesitterRepository.findOneById(1);
+    const secondHomesitter = await homesitterRepository.findOne(1);
     console.log("Non exist homesitter: ", secondHomesitter);
-    const thirdHomesitter = await homesitterRepository.findOneById(3);
+    const thirdHomesitter = await homesitterRepository.findOne(3);
     console.log("Non exist homesitter: ", thirdHomesitter);
     console.log("-----------------");
-    const secondStudent = await studentRepository.findOneById(1);
+    const secondStudent = await studentRepository.findOne(1);
     console.log("Non exist student: ", secondStudent);
-    const thirdStudent = await studentRepository.findOneById(2);
+    const thirdStudent = await studentRepository.findOne(2);
     console.log("Non exist student: ", thirdStudent);
 
 

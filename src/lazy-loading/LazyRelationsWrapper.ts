@@ -1,92 +1,67 @@
 import {RelationMetadata} from "../metadata/RelationMetadata";
-import {QueryBuilder} from "../query-builder/QueryBuilder";
 import {Connection} from "../connection/Connection";
+import {ObjectLiteral} from "../common/ObjectLiteral";
+import {RelationLoader} from "../query-builder/RelationLoader";
 
+/**
+ * Wraps entities and creates getters/setters for their relations
+ * to be able to lazily load relations when accessing these relations.
+ */
 export class LazyRelationsWrapper {
-    
+
+    // -------------------------------------------------------------------------
+    // Constructor
+    // -------------------------------------------------------------------------
+
     constructor(private connection: Connection) {
-        
     }
-    
-    wrap(object: Object, relation: RelationMetadata) {
-        const connection = this.connection;
-        const index = "__" + relation.propertyName + "__";
-        const loadIndex = "__load_" + relation.propertyName + "__";
-        const resolveIndex = "__has_" + relation.propertyName + "__";
-        
+
+    // -------------------------------------------------------------------------
+    // Public Methods
+    // -------------------------------------------------------------------------
+
+    /**
+     * Wraps given entity and creates getters/setters for its given relation
+     * to be able to lazily load data when accessing these relation.
+     */
+    wrap(object: ObjectLiteral, relation: RelationMetadata) {
+        const relationLoader = new RelationLoader(this.connection);
+        const dataIndex = "__" + relation.propertyName + "__"; // in what property of the entity loaded data will be stored
+        const promiseIndex = "__promise_" + relation.propertyName + "__"; // in what property of the entity loading promise will be stored
+        const resolveIndex = "__has_" + relation.propertyName + "__"; // indicates if relation data already was loaded or not
+
         Object.defineProperty(object, relation.propertyName, {
             get: function() {
-                if (this[resolveIndex] === true)
-                    return Promise.resolve(this[index]);
-                if (this[loadIndex])
-                    return this[loadIndex];
+                if (this[resolveIndex] === true) // if related data already was loaded then simply return it
+                    return Promise.resolve(this[dataIndex]);
 
-                const qb = new QueryBuilder(connection);
-                if (relation.isManyToMany || relation.isOneToMany) {
+                if (this[promiseIndex]) // if related data is loading then return a promise relationLoader loads it
+                    return this[promiseIndex];
 
-                    if (relation.hasInverseSide) { // if we don't have inverse side then we can't select and join by relation from inverse side
-                        qb.select(relation.propertyName)
-                            .from(relation.inverseRelation.entityMetadata.target, relation.propertyName)
-                            .innerJoin(`${relation.propertyName}.${relation.inverseRelation.propertyName}`, relation.entityMetadata.targetName);
-                    } else {
-                        qb.select(relation.propertyName)
-                            .from(relation.type, relation.propertyName)
-                            .innerJoin(relation.junctionEntityMetadata.table.name, relation.junctionEntityMetadata.name, "ON",
-                                `${relation.junctionEntityMetadata.name}.${relation.name}=:${relation.propertyName}Id`)
-                            .setParameter(relation.propertyName + "Id", this[relation.referencedColumnName]);
-                    }
+                // nothing is loaded yet, load relation data and save it in the model once they are loaded
+                this[promiseIndex] = relationLoader.load(relation, this).then(result => {
+                    this[dataIndex] = result;
+                    this[resolveIndex] = true;
+                    delete this[promiseIndex];
+                    return this[dataIndex];
 
-                    this[loadIndex] = qb.getResults().then(results => {
-                        this[index] = results;
-                        this[resolveIndex] = true;
-                        delete this[loadIndex];
-                        return this[index];
-                    }).catch(err => {
-                        throw err;
-                    });
-                    return this[loadIndex];
-
-                } else {
-
-                    if (relation.hasInverseSide) {
-                        qb.select(relation.propertyName)
-                            .from(relation.inverseRelation.entityMetadata.target, relation.propertyName)
-                            .innerJoin(`${relation.propertyName}.${relation.inverseRelation.propertyName}`, relation.entityMetadata.targetName);
-
-                    } else {
-                        // (ow) post.category<=>category.post
-                        // loaded: category from post
-                        qb.select(relation.propertyName) // category
-                            .from(relation.type, relation.propertyName) // Category, category
-                            .innerJoin(relation.entityMetadata.target as Function, relation.entityMetadata.name, "ON",
-                                `${relation.entityMetadata.name}.${relation.propertyName}=:${relation.propertyName}Id`) // Post, post, post.category = categoryId
-                            .setParameter(relation.propertyName + "Id", this[relation.referencedColumnName]);
-                    }
-                    // console.log(qb.getSql());
-                    this[loadIndex] = qb.getSingleResult().then(result => {
-                        this[index] = result;
-                        this[resolveIndex] = true;
-                        delete this[loadIndex];
-                        return this[index];
-                    }).catch(err => {
-                        throw err;
-                    });
-                    return this[loadIndex];
-                }
+                }); // .catch((err: any) => { throw err; });
+                return this[promiseIndex];
             },
             set: function(promise: Promise<any>) {
-                if (promise instanceof Promise) {
+                if (promise instanceof Promise) { // if set data is a promise then wait for its resolve and save in the object
                     promise.then(result => {
-                        this[index] = result;
+                        this[dataIndex] = result;
                         this[resolveIndex] = true;
                     });
-                } else {
-                    this[index] = promise;
+
+                } else { // if its direct data set (non promise, probably not safe-typed)
+                    this[dataIndex] = promise;
                     this[resolveIndex] = true;
                 }
             },
             configurable: true
         });
     }
-    
+
 }

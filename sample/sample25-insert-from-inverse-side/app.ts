@@ -1,22 +1,17 @@
 import "reflect-metadata";
-import {createConnection, ConnectionOptions} from "../../src/index";
+import {ConnectionOptions, createConnection} from "../../src/index";
 import {Post} from "./entity/Post";
 import {Author} from "./entity/Author";
 
 const options: ConnectionOptions = {
-    driver: {
-        type: "mysql",
-        host: "localhost",
-        port: 3306,
-        username: "root",
-        password: "admin",
-        database: "test"
-    },
-    logging: {
-        logOnlyFailedQueries: true,
-        logFailedQueryError: true
-    },
-    autoSchemaSync: true,
+    type: "mysql",
+    host: "localhost",
+    port: 3306,
+    username: "root",
+    password: "admin",
+    database: "test",
+    logging: ["query", "error"],
+    synchronize: true,
     entities: [Post, Author]
 };
 
@@ -25,24 +20,24 @@ createConnection(options).then(connection => {
     let postRepository = connection.getRepository(Post);
     let authorRepository = connection.getRepository(Author);
 
-    const authorPromise = authorRepository.findOneById(1).then(author => {
+    const authorPromise = authorRepository.findOne(1).then(author => {
         if (!author) {
             author = new Author();
             author.name = "Umed";
-            return authorRepository.persist(author).then(savedAuthor => {
-                return authorRepository.findOneById(1);
+            return authorRepository.save(author).then(savedAuthor => {
+                return authorRepository.findOne(1);
             });
         }
         return author;
     });
 
-    const postPromise = postRepository.findOneById(1).then(post => {
+    const postPromise = postRepository.findOne(1).then(post => {
         if (!post) {
             post = new Post();
             post.title = "Hello post";
             post.text = "This is post contents";
-            return postRepository.persist(post).then(savedPost => {
-                return postRepository.findOneById(1);
+            return postRepository.save(post).then(savedPost => {
+                return postRepository.findOne(1);
             });
         }
         return post;
@@ -52,7 +47,7 @@ createConnection(options).then(connection => {
         .then(results => {
             const [author, post] = results;
             author.posts = [post];
-            return authorRepository.persist(author);
+            return authorRepository.save(author);
         })
         .then(savedAuthor => {
             console.log("Author has been saved: ", savedAuthor);
